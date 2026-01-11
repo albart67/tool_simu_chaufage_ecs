@@ -4,7 +4,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import time
 
-#test
 # Configuration
 st.set_page_config(page_title="Simulateur ECS Hybride Expert", layout="wide")
 st.title("Simulateur ECS : PAC + Chaudière (Bilan Complet & Temps de chauffe)")
@@ -21,27 +20,27 @@ def format_duration(seconds):
 # --- Barre latérale (Sidebar) ---
 with st.sidebar:
     st.header("⚡ Paramètres PAC")
-    P_pac_th = st.number_input("Puissance THERMIQUE PAC (kW)", 1.0, 50.0, 8.0)
-    T_prim = st.number_input("T° Primaire PAC (°C)", 30.0, 80.0, 55.0)
-    cop_moyen = st.slider("COP moyen de la PAC", 1.5, 5.0, 3.0, 0.1)
+    P_pac_th = st.number_input("Puissance THERMIQUE PAC (kW)", 1.0, 50.0, 15.0)
+    T_prim = st.number_input("T° Primaire PAC (°C)", 30.0, 80.0, 70.0)
+    cop_moyen = st.slider("COP moyen de la PAC", 1.5, 5.0, 2.0, 0.1)
     t_delay_min = st.number_input("Tempo démarrage (min)", 0, 15, 3)
     t_anti_cycle_min = st.number_input("Arrêt minimum anti-court-cycle (min)", 0, 30, 10)
     
     st.header("🔥 Chaudière de Secours")
-    P_chaud = st.number_input("Puissance Chaudière (kW)", 0.0, 100.0, 15.0)
-    t_secours_min = st.slider("Délai avant secours (min)", 0, 90, 30)
+    P_chaud = st.number_input("Puissance Chaudière (kW)", 0.0, 100.0, 50.0)
+    t_secours_min = st.slider("Délai avant secours (min)", 0, 90, 15)
 
     st.header("🌡️ Déperditions & Volume")
-    V_ball = st.number_input("Volume ballon (L)", 100, 5000, 300)
-    ua_ballon = st.number_input("Déperdition Cuve UA (W/K)", 0.1, 10.0, 2.0)
+    V_ball = st.number_input("Volume ballon (L)", 100, 5000, 900)
+    ua_ballon = st.number_input("Déperdition Cuve UA (W/K)", 0.1, 10.0, 1.0)
     P_bouclage_kW = st.number_input("Pertes bouclage (kW)", 0.0, 10.0, 0.5)
-    T_amb = st.number_input("T° Ambiante local (°C)", 0.0, 40.0, 20.0)
+    T_amb = st.number_input("T° Ambiante local (°C)", 0.0, 40.0, 15.0)
 
     st.header("🚿 Consignes")
-    T_cons = st.number_input("T° Consigne (°C)", 40.0, 65.0, 55.0)
-    dT_restart = st.number_input("Delta T redémarrage (°C)", 1.0, 15.0, 5.0)
-    T_init = st.number_input("T° initiale (°C)", 5.0, 65.0, 52.0)
-    T_eau_froide = st.number_input("T° Eau froide (°C)", 5.0, 25.0, 12.0)
+    T_cons = st.number_input("T° Consigne (°C)", 40.0, 65.0, 60.0)
+    dT_restart = st.number_input("Delta T redémarrage (°C)", 1.0, 15.0, 7.0)
+    T_init = st.number_input("T° initiale (°C)", 5.0, 65.0, 55.0)
+    T_eau_froide = st.number_input("T° Eau froide (°C)", 5.0, 25.0, 10.0)
 
     dt = st.number_input("Pas de temps de calcul (s)", 1, 60, 10)
 
@@ -49,10 +48,16 @@ with st.sidebar:
 st.subheader("📅 Profil de consommation journalier (24h)")
 c1, c2 = st.columns([1, 2])
 with c1:
-    v_total_jour = st.number_input("Besoin journalier total à 60°C (Litres)", 10, 10000, 500)
+    v_total_jour = st.number_input("Besoin journalier total à 60°C (Litres)", 10, 10000, 1000)
     default_ratios = [0,0,0,0,0,0,10,15,10,5,2,2,3,2,2,2,3,5,10,15,10,4,0,0]
     df_profil = pd.DataFrame({"Heure": [f"{h}h" for h in range(24)], "Répartition (%)": default_ratios})
-    edited_df = st.data_editor(df_profil, hide_index=True, use_container_width=True)
+    
+    # Mise à jour selon votre consigne de syntaxe
+    # edited_df = st.data_editor(df_profil, hide_index=True, use_container_width='stretch')
+
+    # Par celle-ci (syntaxe 2026) :
+    edited_df = st.data_editor(df_profil, hide_index=True, width='stretch')
+    
     ratios = edited_df["Répartition (%)"].values / 100
     hour_volumes = ratios * v_total_jour
 
@@ -107,7 +112,8 @@ for i in range(1, len(time_array)):
     P_chaud_active[i] = p_chaud_inst
 
     p_pertes = (ua_ballon * (Ti - T_amb)) + (P_bouclage_kW * 1000)
-    dT_step = (p_pac_inst + p_chaud_inst - p_pertes - p_tirage) * dt / ((V_ball/1000 * RHO_WATER) * CP_WATER)
+    m_ball = (V_ball/1000 * RHO_WATER)
+    dT_step = (p_pac_inst + p_chaud_inst - p_pertes - p_tirage) * dt / (m_ball * CP_WATER)
     T[i] = max(T_eau_froide, Ti + dT_step)
 
 # --- Graphiques ---
@@ -143,7 +149,7 @@ e_utile_tirage = np.sum(P_tirage_array * dt) / 3600000
 e_bouclage_kwh = P_bouclage_kW * 24
 e_pertes_statiques = np.sum((ua_ballon * (T - T_amb)) * dt) / 3600000
 e_besoin_total = e_utile_tirage + e_bouclage_kwh + e_pertes_statiques
-delta_stock = (V_ball/1000 * RHO_WATER * CP_WATER * (T[-1] - T[0])) / 3600000
+delta_stock = (m_ball * CP_WATER * (T[-1] - T[0])) / 3600000
 
 demarrages = len([i for i in range(1, len(P_pac_active_th)) if P_pac_active_th[i] > 0 and P_pac_active_th[i-1] == 0])
 
