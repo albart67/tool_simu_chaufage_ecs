@@ -94,14 +94,32 @@ for i in range(1, len(time_array)):
 
     elif pac_state == "STARTING":
         wait_timer += dt
-        chauffe_timer += dt # Le chrono chaudière tourne déjà pendant la montée en T°
+        chauffe_timer += dt 
         
-        # Enclenchement de la chaudière si le secours est court
+        # --- AJOUT ICI ---
+        # On met une valeur infime pour que ce temps soit comptabilisé 
+        # dans le temps de fonctionnement sans chauffer le ballon.
+        p_pac_inst = 1e-6 
+        # ------------------
+
         if chauffe_timer > (t_secours_min * 60):
             p_chaud_inst = P_chaud * 1000
             
         if wait_timer >= (t_delay_min * 60):
             pac_state = "HEATING"
+
+    # elif pac_state == "STARTING":
+    #     wait_timer += dt
+    #     chauffe_timer += dt # Le chrono chaudière tourne déjà pendant la montée en T°
+        
+    #     # Enclenchement de la chaudière si le secours est court
+    #     if chauffe_timer > (t_secours_min * 60):
+    #         p_chaud_inst = P_chaud * 1000
+            
+    #     if wait_timer >= (t_delay_min * 60):
+    #         pac_state = "HEATING"
+
+    
 
     elif pac_state == "HEATING":
         if Ti >= T_cons or T_prim <= Ti:
